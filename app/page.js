@@ -9,7 +9,8 @@ const MQTT_TOPIC_CMD = 'breakerbot/cmd'
 const MQTT_TOPIC_STATUS = 'breakerbot/status'
 const MQTT_TOPIC_LOG = 'breakerbot/log'
 const ACCESS_CODE = 'circuit'
-const SECURITY_PIN = process.env.NEXT_PUBLIC_SECURITY_PIN || 'circuit'
+const SECURITY_PIN = 'circuit'
+const REACTIVATE_CODE = 'CBMA'
 
 export default function Home() {
   // Session State
@@ -224,6 +225,10 @@ export default function Home() {
         setLightsStatus(newState)
         addLog(`Lights turned ${newState ? 'ON' : 'OFF'}`, 'info')
       }
+      if (action === 'disable_card') {
+        setCardStatus('DISABLED')
+        addLog('RFID Card Disabled', 'error')
+      }
     } else {
       showNotification('System offline', true)
     }
@@ -236,7 +241,10 @@ export default function Home() {
   }
 
   const verifyAndExecute = () => {
-    if (pinInput === SECURITY_PIN) {
+    const isReactivating = pendingAction === 'enable_card'
+    const correctPassword = isReactivating ? REACTIVATE_CODE : SECURITY_PIN
+
+    if (pinInput === correctPassword) {
       if (pendingAction === 'open_door') {
         setDoorStatus('OPENING...')
         addLog('Door Unlocked & Opened', 'success')
@@ -246,9 +254,10 @@ export default function Home() {
           addLog('Door Closed automatically', 'info')
         }, 5000)
       } else if (pendingAction === 'enable_card') {
-        addLog('RFID Card Reactivated', 'warning')
+        setCardStatus('ACTIVE')
+        addLog('RFID Card Reactivated', 'success')
       } else if (pendingAction === 'disable_card') {
-        addLog('RFID Card Disabled', 'error')
+        setCardStatus('DISABLED')
       }
 
       sendCommand(pendingAction)
@@ -459,15 +468,18 @@ export default function Home() {
       {showPinModal && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3>Security Verification</h3>
-            <div style={{ textAlign: 'center', marginBottom: '20px', fontSize: '40px' }}>🔒</div>
+            <h3>{pendingAction === 'enable_card' ? 'Administrator Access' : 'Security Verification'}</h3>
+            <div style={{ textAlign: 'center', marginBottom: '20px', fontSize: '40px' }}>
+              {pendingAction === 'enable_card' ? '🗝️' : '🔒'}
+            </div>
             <input
               type="password"
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value)}
-              placeholder="Enter PIN"
+              placeholder={pendingAction === 'enable_card' ? 'Enter Code (CBMA)' : 'Enter PIN'}
               autoFocus
               className="pin-input"
+              style={pendingAction === 'enable_card' ? { letterSpacing: '4px', textTransform: 'uppercase' } : {}}
               onKeyDown={(e) => e.key === 'Enter' && verifyAndExecute()}
             />
             <div className="modal-buttons">
