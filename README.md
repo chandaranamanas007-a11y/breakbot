@@ -1,90 +1,75 @@
-# BreakerBot Web Dashboard
+# ⚡ BreakerBot Web Dashboard
 
-Control your ESP32 Smart Access system from anywhere via the internet.
+![Status](https://img.shields.io/badge/Status-Online-success)
+![Next.js](https://img.shields.io/badge/Built%20With-Next.js-black)
+![License](https://img.shields.io/badge/License-MIT-blue)
 
-## Setup Instructions
+A premium, glassmorphism-styled web dashboard for the **BreakerBot Smart Home System**. This application provides real-time monitoring and secure control of IoT devices (lights, fans, door locks, RFID) using MQTT over WebSockets.
 
-### 1. Set Up HiveMQ Cloud (Free MQTT Broker)
+## ✨ Features
 
-1. Go to [HiveMQ Cloud](https://www.hivemq.com/cloud/) and sign up for free
-2. Create a new cluster (free tier is fine)
-3. Once created, note down:
-   - **Cluster URL**: Something like `abc123.s1.eu.hivemq.cloud`
-   - **Port**: `8883` (TLS) for ESP32, `8884` (WebSocket TLS) for web
-4. Go to "Access Management" and create credentials:
-   - Username: `breakerbot`
-   - Password: (choose a strong password)
+- **🎨 Modern Aesthetic:** Glassmorphism UI with animated backgrounds, blur effects, and smooth transitions.
+- **⚡ Real-time Updates:** Instant status synchronization via MQTT (WebSockets).
+- **🔒 Secure Access:** 
+  - Login system with Session control.
+  - PIN verification for critical actions (Door Open, Card Management).
+- **📱 PWA Ready:** Installable as a native-like app on Android/iOS.
+- **📊 Activity Log:** Visual log of all system events (Access granted, Fan toggled, etc.).
+- **🛠 Manual Controls:** Direct toggle of appliances and security reporting.
 
-### 2. Update ESP32 Code
+## 🚀 Getting Started
 
-In `sketch_nov17a.ino`, update the MQTT settings (around line 27):
+### Prerequisites
 
-```cpp
-const char* mqtt_server = "YOUR-CLUSTER.s1.eu.hivemq.cloud";
-const int mqtt_port = 8883;
-const char* mqtt_user = "breakerbot";
-const char* mqtt_pass = "your-password";
-```
+- Node.js 18+ installed
+- An MQTT Broker (using HiveMQ Public Broker by default)
 
-**Important**: For HiveMQ Cloud (TLS), you also need to change the WiFiClient to WiFiClientSecure. Add this code before `setup()`:
+### Installation
 
-```cpp
-// Replace: WiFiClient mqttWifiClient;
-// With:
-WiFiClientSecure mqttWifiClient;
-
-// And in setup(), before mqttClient.setServer(), add:
-mqttWifiClient.setInsecure(); // Skip certificate verification (for simplicity)
-```
-
-Then install the **PubSubClient** library in Arduino IDE:
-- Go to Sketch → Include Library → Manage Libraries
-- Search for "PubSubClient" by Nick O'Leary
-- Install it
-
-Upload the updated code to your ESP32.
-
-### 3. Deploy to Vercel
-
-1. Push this folder to GitHub:
+1. **Clone the repository:**
    ```bash
+   git clone https://github.com/yourusername/breakerbot-web.git
    cd breakerbot-web
-   git init
-   git add .
-   git commit -m "Initial commit"
-   gh repo create breakerbot-web --public --push
    ```
 
-2. Go to [Vercel](https://vercel.com) and sign in with GitHub
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-3. Click "Add New Project" and import `breakerbot-web`
+3. **Configure Environment:**
+   Copy `.env.example` to `.env.local`:
+   ```bash
+   cp .env.example .env.local
+   ```
+   *Edit `.env.local` if you need to change the Security PIN.*
 
-4. Add Environment Variables:
-   - `NEXT_PUBLIC_MQTT_BROKER`: `wss://YOUR-CLUSTER.s1.eu.hivemq.cloud:8884/mqtt`
-   - `NEXT_PUBLIC_SECURITY_PIN`: `1234` (or your preferred PIN)
+4. **Run Development Server:**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) to view the dashboard.
 
-5. Click "Deploy"
+## 🛠 Configuration
 
-### 4. Test It
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `NEXT_PUBLIC_MQTT_BROKER` | WebSocket URL for MQTT Broker | `wss://broker.hivemq.com:8884/mqtt` |
+| `NEXT_PUBLIC_SECURITY_PIN` | PIN for critical actions | `1234` |
 
-1. Make sure your ESP32 is powered on and connected to WiFi
-2. Open your Vercel URL (e.g., `breakerbot-web.vercel.app`)
-3. The status should show "Connected"
-4. Try opening the door - you should see the ESP32 respond!
+## 📦 Build for Production
 
-## Quick Test (Public Broker)
+To create an optimized production build:
 
-For testing without HiveMQ Cloud setup, both the website and ESP32 are configured to use the public `broker.hivemq.com` by default. This works but is **not secure for production** - anyone could control your door!
+```bash
+npm run build
+npm start
+```
 
-## Files
+## 📱 PWA Support
 
-- `app/page.js` - Main dashboard UI
-- `app/layout.js` - App layout
-- `.env.example` - Environment variables template
+This app works as a Progressive Web App. You can "Add to Home Screen" on your mobile device to use it like a native app.
 
-## Security Notes
+## 📄 License
 
-- The PIN is validated client-side for demo purposes
-- For production, consider adding server-side authentication
-- Use HiveMQ Cloud (not the public broker) for secure communication
-- Consider adding MQTT topic prefixes unique to your device
+This project is licensed under the MIT License.
