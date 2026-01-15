@@ -26,6 +26,7 @@ export default function Home() {
   const [cardStatus, setCardStatus] = useState('ACTIVE')
   const [fanStatus, setFanStatus] = useState(false)
   const [lightsStatus, setLightsStatus] = useState(false)
+  const [isLockedOut, setIsLockedOut] = useState(false)
   const [logs, setLogs] = useState([])
 
   // Analytics State
@@ -131,6 +132,7 @@ export default function Home() {
           if (data.card !== undefined) setCardStatus(data.card)
           if (data.fan !== undefined) setFanStatus(data.fan)
           if (data.lights !== undefined) setLightsStatus(data.lights)
+          if (data.lockout !== undefined) setIsLockedOut(data.lockout)
         }
         if (topic === MQTT_TOPIC_LOG) {
           addLog(data.action || 'Event', data.success !== false ? 'success' : 'error')
@@ -241,8 +243,8 @@ export default function Home() {
   }
 
   const verifyAndExecute = () => {
-    const isReactivating = pendingAction === 'enable_card'
-    const correctPassword = isReactivating ? REACTIVATE_CODE : SECURITY_PIN
+    const isSpecialAction = pendingAction === 'enable_card' || pendingAction === 'clear_lockout'
+    const correctPassword = isSpecialAction ? REACTIVATE_CODE : SECURITY_PIN
 
     if (pinInput === correctPassword) {
       if (pendingAction === 'open_door') {
@@ -258,6 +260,9 @@ export default function Home() {
         addLog('RFID Card Reactivated', 'success')
       } else if (pendingAction === 'disable_card') {
         setCardStatus('DISABLED')
+      } else if (pendingAction === 'clear_lockout') {
+        setIsLockedOut(false)
+        addLog('Security Lockout Cleared', 'success')
       }
 
       sendCommand(pendingAction)
@@ -347,6 +352,21 @@ export default function Home() {
       <main>
         {activeTab === 'dashboard' && (
           <div className="fade-in">
+            {isLockedOut && (
+              <div className="lockout-banner fade-in">
+                <div className="lockout-content">
+                  <span className="lockout-icon">🚨</span>
+                  <div>
+                    <h3>SECURITY LOCKOUT</h3>
+                    <p>System blocked due to multiple failed scan attempts.</p>
+                  </div>
+                  <button className="btn-reset" onClick={() => handleSecureAction('clear_lockout')}>
+                    Reset System
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Tools Bar */}
             <div className="tools-bar">
               <div className="widget-mini">
@@ -365,7 +385,7 @@ export default function Home() {
             </div>
 
             <div className="status-grid">
-              <StatusCard label="RFID Status" value={cardStatus} icon={<RFIDIcon />} />
+              <StatusCard label="RFID Status" value={isLockedOut ? 'LOCKED' : cardStatus} icon={<RFIDIcon />} active={isLockedOut} danger={isLockedOut} />
               <StatusCard label="Fan Status" value={fanStatus ? 'On' : 'Off'} icon={<FanIcon />} active={fanStatus} />
               <StatusCard label="Lights Status" value={lightsStatus ? 'On' : 'Off'} icon={<LightIcon />} active={lightsStatus} />
               <StatusCard label="Door Status" value={doorStatus} icon={<DoorIcon />} active={doorStatus === 'OPEN'} />
@@ -493,9 +513,9 @@ export default function Home() {
   )
 }
 
-function StatusCard({ label, value, icon, active }) {
+function StatusCard({ label, value, icon, active, danger }) {
   return (
-    <div className={`status-card ${active ? 'active' : ''}`}>
+    <div className={`status-card ${active ? 'active' : ''} ${danger ? 'danger' : ''}`}>
       <div className="status-icon">{icon}</div>
       <div className="status-info">
         <span className="status-label">{label}</span>
