@@ -1,7 +1,7 @@
 {
-    "name": "smart-home-dashboard",
-    "short_name": "Smart Home",
-    "description": "Smart Home Control Dashboard",
+    "name": "Circuit Breakers",
+    "short_name": "Breakers",
+    "description": "IoT Smart Access Control Dashboard",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#0f172a",
