@@ -1,10 +1,10 @@
-# ⚡ BreakerBot Web Dashboard
+# ⚡ Circuit Breakers Web Dashboard
 
 ![Status](https://img.shields.io/badge/Status-Online-success)
 ![Next.js](https://img.shields.io/badge/Built%20With-Next.js-black)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
-A premium, glassmorphism-styled web dashboard for the **BreakerBot Smart Home System**. This application provides real-time monitoring and secure control of IoT devices (lights, fans, door locks, RFID) using MQTT over WebSockets.
+A premium, glassmorphism-styled web dashboard for the **Circuit Breakers Smart Home System**. This application provides real-time monitoring and secure control of IoT devices (lights, fans, door locks, RFID) using MQTT over WebSockets.
 
 ## ✨ Features
 
