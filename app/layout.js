@@ -8,7 +8,7 @@ export const viewport = {
 }
 
 export const metadata = {
-  title: 'BreakerBot Security',
+  title: 'Circuit Breakers Security',
   description: 'IoT Smart Access Control Dashboard',
   manifest: '/manifest.json',
   icons: {

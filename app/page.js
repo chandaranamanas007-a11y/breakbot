@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import mqtt from 'mqtt'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 const MQTT_BROKER = 'wss://broker.hivemq.com:8884/mqtt'
 const MQTT_TOPIC_CMD = 'breakerbot/cmd'
@@ -18,7 +17,6 @@ export default function Home() {
   const [accessCodeInput, setAccessCodeInput] = useState('')
   const [loginError, setLoginError] = useState('')
   const [isShake, setIsShake] = useState(false)
-  const [activeTab, setActiveTab] = useState('dashboard')
 
   // Device State
   const [connected, setConnected] = useState(false)
@@ -29,15 +27,10 @@ export default function Home() {
   const [isLockedOut, setIsLockedOut] = useState(false)
   const [logs, setLogs] = useState([])
 
-  // Analytics State
-  const [energyData, setEnergyData] = useState([])
-  const [currentLoad, setCurrentLoad] = useState(0)
-
   // Feature State
   const [isListening, setIsListening] = useState(false)
   const [theme, setTheme] = useState('default')
   const [weather, setWeather] = useState({ temp: 24, condition: 'Cloudy', humidity: 65 })
-  const [sysHealth, setSysHealth] = useState({ uptime: '0h 0m', signal: 'Excellent' })
 
   // UI State
   const [pinInput, setPinInput] = useState('')
@@ -58,53 +51,7 @@ export default function Home() {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
 
-  // System Health Timer
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const diff = Date.now() - startTime.current
-      const hours = Math.floor(diff / 3600000)
-      const minutes = Math.floor((diff % 3600000) / 60000)
-      setSysHealth(prev => ({ ...prev, uptime: `${hours}h ${minutes}m` }))
-    }, 60000)
-    return () => clearInterval(interval)
-  }, [])
 
-  // Live Energy Data Generation
-  useEffect(() => {
-    // Generate initial history
-    const initialData = []
-    const now = new Date()
-    for (let i = 20; i >= 0; i--) {
-      const time = new Date(now.getTime() - i * 5000)
-      initialData.push({
-        time: time.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        usage: 20 + Math.random() * 10
-      })
-    }
-    setEnergyData(initialData)
-
-    const interval = setInterval(() => {
-      // Calculate load based on devices
-      let load = 20 // Base load
-      if (fanStatus) load += 80
-      if (lightsStatus) load += 40
-
-      // Add some random fluctuation
-      load += (Math.random() * 5 - 2.5)
-
-      setCurrentLoad(Math.round(load))
-
-      setEnergyData(prev => {
-        const newPoint = {
-          time: new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          usage: Math.round(load)
-        }
-        return [...prev.slice(1), newPoint]
-      })
-    }, 2000) // Update every 2 seconds
-
-    return () => clearInterval(interval)
-  }, [fanStatus, lightsStatus])
 
   // MQTT Connection
   useEffect(() => {
@@ -144,7 +91,6 @@ export default function Home() {
 
     client.on('disconnect', () => {
       setConnected(false)
-      setSysHealth(prev => ({ ...prev, signal: 'Disconnected' }))
     })
 
     clientRef.current = client
@@ -307,7 +253,7 @@ export default function Home() {
         <div className={`login-card ${isShake ? 'shake' : ''}`} style={isShake ? { animation: 'shake 0.5s ease' } : {}}>
           <div className="logo">
             <div className="logo-icon"><LogoIcon /></div>
-            <h1>Smart Home</h1>
+            <h1>Circuit Breakers</h1>
           </div>
           <p className="subtitle">Secure Verification Required</p>
           <form onSubmit={handleLogin}>
@@ -337,152 +283,105 @@ export default function Home() {
 
       <header>
         <div className="header-content">
-          <div className="logo-small"><LogoIcon size={32} /><span>BreakerBot</span></div>
+          <div className="logo-small"><LogoIcon size={32} /><span>Circuit Breakers</span></div>
           <div className="header-actions">
-            <button className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>Overview</button>
-            <button className={`nav-btn ${activeTab === 'analytics' ? 'active' : ''}`} onClick={() => setActiveTab('analytics')}>Insights</button>
-            <div className="connection-status">
-              <div className={`status-dot ${connected ? 'connected' : 'disconnected'}`}></div>
-            </div>
+            <div className={`status-dot ${connected ? 'connected' : 'disconnected'}`}></div>
             <button className="btn-logout" onClick={handleLogout}>Exit</button>
           </div>
         </div>
       </header>
 
       <main>
-        {activeTab === 'dashboard' && (
-          <div className="fade-in">
-            {isLockedOut && (
-              <div className="lockout-banner fade-in">
-                <div className="lockout-content">
-                  <span className="lockout-icon">🚨</span>
-                  <div>
-                    <h3>SECURITY LOCKOUT</h3>
-                    <p>System blocked due to multiple failed scan attempts.</p>
-                  </div>
-                  <button className="btn-reset" onClick={() => handleSecureAction('clear_lockout')}>
-                    Reset System
+        <div className="fade-in">
+          {isLockedOut && (
+            <div className="lockout-banner fade-in">
+              <div className="lockout-content">
+                <span className="lockout-icon">🚨</span>
+                <div>
+                  <h3>SECURITY LOCKOUT</h3>
+                  <p>System blocked due to multiple failed scan attempts.</p>
+                </div>
+                <button className="btn-reset" onClick={() => handleSecureAction('clear_lockout')}>
+                  Reset System
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Tools Bar */}
+          <div className="tools-bar">
+            <div className="widget-mini">
+              <span>🌡️ {weather.temp}°C</span>
+              <span className="text-muted">{weather.condition}</span>
+            </div>
+            <div className="flex-spacer"></div>
+            <button className={`control-btn-small ${isListening ? 'listening' : ''}`} onClick={toggleVoiceControl}>
+              <MicIcon /> {isListening ? 'Listening...' : 'Voice'}
+            </button>
+            <select className="theme-select" value={theme} onChange={(e) => setTheme(e.target.value)}>
+              <option value="default">Midnight</option>
+              <option value="emerald">Forest</option>
+              <option value="amber">Sunset</option>
+            </select>
+          </div>
+
+          <div className="status-grid">
+            <StatusCard label="RFID Status" value={isLockedOut ? 'LOCKED' : cardStatus} icon={<RFIDIcon />} active={isLockedOut} danger={isLockedOut} />
+            <StatusCard label="Fan Status" value={fanStatus ? 'On' : 'Off'} icon={<FanIcon />} active={fanStatus} />
+            <StatusCard label="Lights Status" value={lightsStatus ? 'On' : 'Off'} icon={<LightIcon />} active={lightsStatus} />
+            <StatusCard label="Door Status" value={doorStatus} icon={<DoorIcon />} active={doorStatus === 'OPEN'} />
+          </div>
+
+          <div className="dashboard-columns">
+            <div className="column-left">
+              <div className="section-card">
+                <h2>Controls</h2>
+                <div className="controls-grid">
+                  <button className={`control-btn fan-btn ${fanStatus ? 'active' : ''}`} onClick={() => handleToggle('fan')}>
+                    <FanIcon size={32} /><span>Fan</span>
+                  </button>
+                  <button className={`control-btn lights-btn ${lightsStatus ? 'active' : ''}`} onClick={() => handleToggle('lights')}>
+                    <LightIcon size={32} /><span>Lights</span>
+                  </button>
+                  <button className="control-btn door-btn" onClick={() => handleSecureAction('open_door')}>
+                    <DoorIcon size={32} /><span>Unlock</span>
                   </button>
                 </div>
               </div>
-            )}
 
-            {/* Tools Bar */}
-            <div className="tools-bar">
-              <div className="widget-mini">
-                <span>🌡️ {weather.temp}°C</span>
-                <span className="text-muted">{weather.condition}</span>
-              </div>
-              <div className="flex-spacer"></div>
-              <button className={`control-btn-small ${isListening ? 'listening' : ''}`} onClick={toggleVoiceControl}>
-                <MicIcon /> {isListening ? 'Listening...' : 'Voice'}
-              </button>
-              <select className="theme-select" value={theme} onChange={(e) => setTheme(e.target.value)}>
-                <option value="default">Midnight</option>
-                <option value="emerald">Forest</option>
-                <option value="amber">Sunset</option>
-              </select>
-            </div>
-
-            <div className="status-grid">
-              <StatusCard label="RFID Status" value={isLockedOut ? 'LOCKED' : cardStatus} icon={<RFIDIcon />} active={isLockedOut} danger={isLockedOut} />
-              <StatusCard label="Fan Status" value={fanStatus ? 'On' : 'Off'} icon={<FanIcon />} active={fanStatus} />
-              <StatusCard label="Lights Status" value={lightsStatus ? 'On' : 'Off'} icon={<LightIcon />} active={lightsStatus} />
-              <StatusCard label="Door Status" value={doorStatus} icon={<DoorIcon />} active={doorStatus === 'OPEN'} />
-            </div>
-
-            <div className="dashboard-columns">
-              <div className="column-left">
-                <div className="section-card">
-                  <h2>Controls</h2>
-                  <div className="controls-grid">
-                    <button className={`control-btn fan-btn ${fanStatus ? 'active' : ''}`} onClick={() => handleToggle('fan')}>
-                      <FanIcon size={32} /><span>Fan</span>
-                    </button>
-                    <button className={`control-btn lights-btn ${lightsStatus ? 'active' : ''}`} onClick={() => handleToggle('lights')}>
-                      <LightIcon size={32} /><span>Lights</span>
-                    </button>
-                    <button className="control-btn door-btn" onClick={() => handleSecureAction('open_door')}>
-                      <DoorIcon size={32} /><span>Unlock</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="section-card">
-                  <h2>Security</h2>
-                  <div className="list-controls">
-                    <button className="list-btn danger" onClick={() => {
-                      if (confirm('Report card as lost? This will disable access.')) sendCommand('disable_card')
-                    }}>
-                      <AlertIcon size={20} /> Report Lost Card
-                    </button>
-                    <button className="list-btn warning" onClick={() => handleSecureAction('enable_card')}>
-                      <ShieldIcon size={20} /> Reactivate Card
-                    </button>
-                  </div>
+              <div className="section-card">
+                <h2>Security</h2>
+                <div className="list-controls">
+                  <button className="list-btn danger" onClick={() => {
+                    if (confirm('Report card as lost? This will disable access.')) sendCommand('disable_card')
+                  }}>
+                    <AlertIcon size={20} /> Report Lost Card
+                  </button>
+                  <button className="list-btn warning" onClick={() => handleSecureAction('enable_card')}>
+                    <ShieldIcon size={20} /> Reactivate Card
+                  </button>
                 </div>
               </div>
+            </div>
 
-              <div className="column-right">
-                <div className="section-card h-full">
-                  <h2>Activity Log</h2>
-                  <div className="activity-log">
-                    {logs.map((log, i) => (
-                      <div key={i} className={`activity-item ${log.type}`}>
-                        <div className="activity-icon"><ActivityIcon /></div>
-                        <div className="activity-content">
-                          <span className="activity-text">{log.text}</span>
-                          <span className="activity-time">{log.time}</span>
-                        </div>
+            <div className="column-right">
+              <div className="section-card h-full">
+                <h2>Activity Log</h2>
+                <div className="activity-log">
+                  {logs.map((log, i) => (
+                    <div key={i} className={`activity-item ${log.type}`}>
+                      <div className="activity-icon"><ActivityIcon /></div>
+                      <div className="activity-content">
+                        <span className="activity-text">{log.text}</span>
+                        <span className="activity-time">{log.time}</span>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
-        )}
-
-        {activeTab === 'analytics' && (
-          <div className="fade-in">
-            <div className="analytics-header">
-              <div className="metric-card">
-                <h3>Current Load</h3>
-                <p className="metric-value">{currentLoad}W</p>
-                <p className="metric-label">Live Usage</p>
-              </div>
-              <div className="metric-card">
-                <h3>System Health</h3>
-                <p className="metric-value">{sysHealth.signal}</p>
-                <p className="metric-label">Uptime: {sysHealth.uptime}</p>
-              </div>
-            </div>
-
-            <div className="glass-panel" style={{ padding: '2rem', marginTop: '20px' }}>
-              <h2 style={{ marginBottom: '20px' }}>Live Power Consumption</h2>
-              <div style={{ height: '400px', width: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={energyData}>
-                    <defs>
-                      <linearGradient id="colorUsage" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="time" stroke="#94a3b8" />
-                    <YAxis stroke="#94a3b8" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', color: '#f1f5f9' }}
-                      itemStyle={{ color: '#818cf8' }}
-                    />
-                    <Area type="monotone" dataKey="usage" stroke="var(--primary)" fillOpacity={1} fill="url(#colorUsage)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
       </main>
 
       {showPinModal && (
