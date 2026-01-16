@@ -27,7 +27,6 @@ export default function Home() {
   const [isLockedOut, setIsLockedOut] = useState(false)
   const [logs, setLogs] = useState([])
 
-  // Feature State
   const [isListening, setIsListening] = useState(false)
   const [theme, setTheme] = useState('default')
   const [weather, setWeather] = useState({ temp: 24, condition: 'Cloudy', humidity: 65 })
