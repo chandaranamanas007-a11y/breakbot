@@ -68,7 +68,6 @@ export default function Home() {
       client.subscribe([MQTT_TOPIC_STATUS, MQTT_TOPIC_LOG])
       client.publish(MQTT_TOPIC_CMD, JSON.stringify({ action: 'get_status' }))
       addLog('Dashboard online', 'success')
-      setSysHealth(prev => ({ ...prev, signal: 'Excellent (24ms)' }))
     })
 
     client.on('message', (topic, message) => {
@@ -77,8 +76,8 @@ export default function Home() {
         if (topic === MQTT_TOPIC_STATUS) {
           if (data.door !== undefined) setDoorStatus(data.door)
           if (data.card !== undefined) setCardStatus(data.card)
-          if (data.fan !== undefined) setFanStatus(data.fan)
-          if (data.lights !== undefined) setLightsStatus(data.lights)
+          if (data.fan !== undefined) setFanStatus(data.fan === 'ON')
+          if (data.lights !== undefined) setLightsStatus(data.lights === 'ON')
           if (data.lockout !== undefined) setIsLockedOut(data.lockout)
         }
         if (topic === MQTT_TOPIC_LOG) {
@@ -196,6 +195,8 @@ export default function Home() {
       if (pendingAction === 'open_door') {
         setDoorStatus('OPENING...')
         addLog('Door Unlocked & Opened', 'success')
+        setFanStatus(true)
+        setLightsStatus(true)
         setTimeout(() => setDoorStatus('OPEN'), 1000)
         setTimeout(() => {
           setDoorStatus('CLOSED')
