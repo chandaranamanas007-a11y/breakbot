@@ -787,17 +787,134 @@ main {
   }
 }
 
-.notification {
+/* Notifications */
+.notification-container {
   position: fixed;
-  top: 20px;
-  right: 20px;
-  color: white;
-  padding: 16px 24px;
+  top: 24px;
+  right: 24px;
+  z-index: 2000;
+  min-width: 320px;
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  animation: notificationEnter 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+  overflow: hidden;
+}
+
+.notification-container.success {
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+.notification-container.error {
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.notification-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.notification-icon {
+  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
-  animation: slideIn 0.3s ease;
-  max-width: 300px;
+}
+
+.notification-text {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.notification-progress {
+  height: 3px;
+  background: var(--primary);
+  width: 100%;
+  border-radius: 3px;
+  animation: notificationProgress 3s linear forwards;
+}
+
+.notification-container.error .notification-progress {
+  background: var(--danger);
+}
+
+.notification-container.success .notification-progress {
+  background: var(--success);
+}
+
+@keyframes notificationEnter {
+  from {
+    transform: translateX(100%) scale(0.9);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes notificationProgress {
+  from {
+    width: 100%;
+  }
+
+  to {
+    width: 0%;
+  }
+}
+
+/* Tools Bar Enhancements */
+.tool-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-right: 12px;
+}
+
+.tool-icon {
+  font-size: 20px;
+}
+
+.tool-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.tool-value {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.tool-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tool-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 /* Theme Variations */
@@ -1017,6 +1134,7 @@ main {
   text-align: center;
   font-family: monospace;
 }
+
 /* Lockout Features */
 .lockout-banner {
   background: rgba(239, 68, 68, 0.15);
@@ -1071,7 +1189,336 @@ main {
 }
 
 @keyframes pulse-red {
-  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-  70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 15px rgba(239, 68, 68, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   THREE-ZONE GEOFENCING STYLES
+═══════════════════════════════════════════════════════════════ */
+
+/* Zone Pill — in header */
+.zone-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  border: 1px solid;
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+  transition: all 0.4s ease;
+}
+
+.zone-pill.zone-green {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #34d399;
+}
+
+.zone-pill.zone-amber {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.zone-pill.zone-red {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.7);
+  color: #f87171;
+  animation: pulse-red-pill 1s ease-in-out infinite;
+}
+
+.zone-pill.zone-unknown {
+  background: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.3);
+  color: var(--text-muted);
+}
+
+@keyframes pulse-red-pill {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+}
+
+/* Zone Status Banner — below lockout banner */
+.zone-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  border: 1px solid;
+  margin-bottom: 20px;
+  backdrop-filter: blur(12px);
+  animation: fadeIn 0.4s ease;
+}
+
+.zone-banner-1 {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.zone-banner-2 {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.zone-banner-3 {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.zone-banner-null {
+  background: rgba(100, 116, 139, 0.08);
+  border-color: rgba(100, 116, 139, 0.2);
+}
+
+.zone-banner-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.zone-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.zone-banner-text strong {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.zone-banner-text span {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.geo-error-badge {
+  font-size: 11px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+/* Zone 2 warning note inside Controls card */
+.zone-warning-note {
+  font-size: 13px;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+
+/* Zone 2 hint inside PIN modal */
+.zone2-modal-hint {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #fbbf24;
+  margin-bottom: 16px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Geo-disabled control buttons */
+.control-btn.geo-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+  position: relative;
+}
+
+.control-btn.geo-disabled::after {
+  content: '🔒';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 12px;
+}
+
+/* ── Zone 3 Full-screen Geo Lockdown Overlay ── */
+.geo-lockdown-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 5, 5, 0.92);
+  backdrop-filter: blur(16px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.5s ease;
+}
+
+.geo-lockdown-card {
+  background: rgba(30, 10, 10, 0.95);
+  border: 2px solid rgba(239, 68, 68, 0.6);
+  border-radius: 28px;
+  padding: 48px 40px;
+  max-width: 520px;
+  width: 90%;
+  text-align: center;
+  box-shadow:
+    0 0 80px rgba(239, 68, 68, 0.25),
+    0 20px 60px rgba(0, 0, 0, 0.6);
+  animation: zoomIn 0.4s ease;
+}
+
+.geo-lockdown-pulse {
+  font-size: 64px;
+  margin-bottom: 20px;
+  animation: geo-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes geo-pulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0));
+  }
+
+  50% {
+    transform: scale(1.12);
+    filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.7));
+  }
+}
+
+.geo-lockdown-card h2 {
+  font-size: 26px;
+  font-weight: 800;
+  color: #f87171;
+  letter-spacing: 2px;
+  margin-bottom: 16px;
+}
+
+.geo-lockdown-sub {
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.geo-lockdown-status {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+
+.geo-status-chip {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.btn-lockdown-clear {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #dc2626, #7f1d1d);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  border-radius: 14px;
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3);
+  letter-spacing: 0.5px;
+}
+
+.btn-lockdown-clear:hover {
+  background: linear-gradient(135deg, #ef4444, #991b1b);
+  box-shadow: 0 8px 30px rgba(239, 68, 68, 0.5);
+  transform: translateY(-2px);
+}
+
+/* ── Lockdown Clear Modal — Two Layer ── */
+.lockdown-clear-modal {
+  max-width: 460px !important;
+}
+
+.lockdown-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.lockdown-step {
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  transition: all 0.3s ease;
+}
+
+.lockdown-step.step-active {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: var(--primary);
+}
+
+.lockdown-step.step-done {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #34d399;
+}
+
+.lockdown-step-arrow {
+  color: var(--text-muted);
+  font-size: 18px;
+}
+
+.lockdown-step-label {
+  text-align: center;
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.lockdown-error {
+  color: var(--danger);
+  font-size: 13px;
+  text-align: center;
+  margin-top: 10px;
+  animation: shake 0.3s ease;
 }
