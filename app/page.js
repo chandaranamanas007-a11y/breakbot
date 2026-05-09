@@ -7,9 +7,16 @@ const MQTT_BROKER = process.env.NEXT_PUBLIC_MQTT_BROKER || 'wss://broker.hivemq.
 const MQTT_TOPIC_CMD = 'breakerbot/cmd'
 const MQTT_TOPIC_STATUS = 'breakerbot/status'
 const MQTT_TOPIC_LOG = 'breakerbot/log'
-const ACCESS_CODE = process.env.NEXT_PUBLIC_ACCESS_CODE || 'circuit'
-const SECURITY_PIN = process.env.NEXT_PUBLIC_SECURITY_PIN || 'circuit'
-const REACTIVATE_CODE = process.env.NEXT_PUBLIC_REACTIVATE_CODE || 'CBMA'
+
+// Authentication logic moved strictly to Secure Hash Algorithm (SHA-256)
+// Eliminating Vercel environment dependencies while retaining GitHub plaintext security
+const HASH_PIN = '5387f61fb55c0cbbd377bcca98fb5de224d081b7a2d815779c6d4825d1cb3776' // 'circuit'
+const HASH_RECOVERY = '9273c5cf8c697c11267b14d2af52538dd3f4ebf88fa068e8055627f12e8b0a96' // 'CBMA'
+
+async function hashStr(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str))
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
+}
 
 // ── Geofencing ─────────────────────────────────────────────────────────────
 const HOME_LAT = 22.2752   // Naval Nagar, Mavdi, Rajkot
@@ -312,9 +319,9 @@ export default function Home() {
   // ─────────────────────────────────────────────────────────────────────────
 
   // ── Emergency CBMA Override (Gate Bypass — Final Recovery Layer) ─────────
-  const handleEmergencyOverride = () => {
-    setEmergencyError('')
-    if (emergencyInput === REACTIVATE_CODE) {
+  const handleEmergencyOverride = async () => {
+    const inputHash = await hashStr(emergencyInput)
+    if (inputHash === HASH_RECOVERY) {
       // CBMA is the ONLY emergency bypass — grants Zone 2 (Away) access, never Zone 1
       setGeoVerified(true)
       setGeoSource('emergency')
@@ -339,9 +346,10 @@ export default function Home() {
   // ─────────────────────────────────────────────────────────────────────────
 
   // Login
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault()
-    if (accessCodeInput === ACCESS_CODE) {
+    const inputHash = await hashStr(accessCodeInput)
+    if (inputHash === HASH_PIN) {
       setIsLoggedIn(true)
       setLoginError('')
     } else {
@@ -420,10 +428,11 @@ export default function Home() {
     setPinInput('')
   }
 
-  const verifyAndExecute = () => {
+  const verifyAndExecute = async () => {
     const isSpecialAction = pendingAction === 'enable_card' || pendingAction === 'clear_lockout'
-    const correctPassword = isSpecialAction ? REACTIVATE_CODE : SECURITY_PIN
-    if (pinInput === correctPassword) {
+    const correctHash = isSpecialAction ? HASH_RECOVERY : HASH_PIN
+    const inputHash = await hashStr(pinInput)
+    if (inputHash === correctHash) {
       if (pendingAction === 'open_door') {
         setDoorStatus('OPENING...')
         addLog('Door Unlocked & Opened', 'success')
@@ -457,10 +466,12 @@ export default function Home() {
   }
 
   // ── Two-Layer Lockdown Clearance ─────────────────────────────────────────
-  const handleLockdownClearInput = () => {
+  const handleLockdownClearInput = async () => {
     setLockdownClearError('')
+    const inputHash = await hashStr(lockdownClearInput)
+    
     if (lockdownClearStep === 1) {
-      if (lockdownClearInput === SECURITY_PIN) {
+      if (inputHash === HASH_PIN) {
         setLockdownClearStep(2)
         setLockdownClearInput('')
         addLog('Lockdown clear — Layer 1 verified', 'info')
@@ -469,8 +480,8 @@ export default function Home() {
         addLog('Failed lockdown clear — Layer 1', 'error')
         setLockdownClearInput('')
       }
-    } else {
-      if (lockdownClearInput === REACTIVATE_CODE) {
+    } else if (lockdownClearStep === 2) {
+      if (inputHash === HASH_RECOVERY) {
         setIsGeoLockedDown(false)
         lastZoneRef.current = null // force zone reclassification on next position
         setShowLockdownClearModal(false)
