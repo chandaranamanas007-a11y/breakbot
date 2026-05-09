@@ -518,7 +518,7 @@ export default function Home() {
   const zm = ZONE_META[geoZone]
 
   // Source badge text
-  const SOURCE_LABELS = { gps: '🛰️ GPS', ip: '📡 IP', emergency: '🔑 CBMA' }
+  const SOURCE_LABELS = { gps: '🛰️ GPS', ip: '📡 IP', emergency: '🔑 Recovery' }
   const sourceLabel = geoSource ? SOURCE_LABELS[geoSource] : null
 
   // ── Login Screen ──────────────────────────────────────────────────────────

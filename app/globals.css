@@ -35,6 +35,7 @@ body {
   line-height: 1.6;
   position: relative;
   overflow-x: hidden;
+  font-size: 16px;
 }
 
 body::before {
@@ -186,8 +187,9 @@ body::before {
 }
 
 .logo h1 {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
   background: linear-gradient(135deg, var(--primary), var(--secondary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -198,7 +200,8 @@ body::before {
   text-align: center;
   color: var(--text-muted);
   margin-bottom: 32px;
-  font-size: 14px;
+  font-size: 15px;
+  letter-spacing: 0.5px;
 }
 
 input {
@@ -208,13 +211,12 @@ input {
   border: 2px solid var(--border);
   border-radius: 12px;
   color: var(--text);
-  font-size: 16px;
-  margin-bottom: 20px;
+  font-size: 18px;
+  margin-bottom: 24px;
   transition: all 0.3s ease;
   text-align: center;
   font-weight: 600;
-  font-family: inherit;
-  letter-spacing: 2px; /* moderate tracking for passwords */
+  letter-spacing: 3px;
 }
 
 input::placeholder {
@@ -236,8 +238,9 @@ input:focus {
   border: none;
   border-radius: 12px;
   color: white;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
@@ -434,8 +437,9 @@ main {
   cursor: pointer;
   transition: all 0.3s ease;
   color: var(--text);
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .control-btn:hover {
