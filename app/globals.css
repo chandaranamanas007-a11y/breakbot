@@ -1522,3 +1522,302 @@ main {
   margin-top: 10px;
   animation: shake 0.3s ease;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   LOCATION VERIFICATION GATE
+═══════════════════════════════════════════════════════════════ */
+
+.geo-gate-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #312e81 100%);
+}
+
+.geo-gate-card {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(30px);
+  border: 2px solid rgba(99, 102, 241, 0.3);
+  border-radius: 32px;
+  padding: 48px 40px;
+  width: 100%;
+  max-width: 520px;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.4),
+    0 0 80px rgba(99, 102, 241, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: fadeIn 0.6s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.geo-gate-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.geo-gate-logo svg {
+  color: var(--primary);
+}
+
+.geo-gate-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+  width: 100%;
+}
+
+.geo-gate-status h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.geo-gate-sub {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* ── Spinner ── */
+.geo-gate-spinner {
+  width: 56px;
+  height: 56px;
+  border: 4px solid rgba(99, 102, 241, 0.15);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: geo-spin 1s linear infinite;
+  margin-bottom: 8px;
+}
+
+.geo-gate-spinner.fallback {
+  border-top-color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.15);
+}
+
+@keyframes geo-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Lock icon (for failed state) ── */
+.geo-gate-lock-icon {
+  font-size: 56px;
+  margin-bottom: 8px;
+  animation: geo-lock-pulse 2s ease-in-out infinite;
+}
+
+@keyframes geo-lock-pulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 transparent); }
+  50% { transform: scale(1.08); filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.5)); }
+}
+
+/* ── Step chips ── */
+.geo-gate-step-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.geo-gate-chip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  transition: all 0.3s ease;
+}
+
+.geo-gate-chip.active {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: var(--primary);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.geo-gate-chip.denied {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+
+.geo-gate-chip-arrow {
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+/* ── Warning box ── */
+.geo-gate-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 12px;
+  font-size: 13px;
+  color: #fca5a5;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.geo-gate-warning-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* ── Emergency override button ── */
+.btn-emergency-override {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05));
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 14px;
+  color: #f87171;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 8px;
+  letter-spacing: 0.3px;
+}
+
+.btn-emergency-override:hover {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(239, 68, 68, 0.1));
+  border-color: rgba(239, 68, 68, 0.6);
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.2);
+  transform: translateY(-2px);
+}
+
+/* ── Emergency override form ── */
+.geo-gate-emergency {
+  width: 100%;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 16px;
+  padding: 24px;
+  animation: fadeIn 0.3s ease;
+}
+
+.geo-gate-emergency h3 {
+  text-align: center;
+  font-size: 18px;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.geo-gate-emergency-sub {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+/* ── Gate logout button ── */
+.btn-gate-logout {
+  padding: 10px 24px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 4px;
+}
+
+.btn-gate-logout:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ZONE SOURCE BADGE & IP/EMERGENCY WARNING BANNER
+═══════════════════════════════════════════════════════════════ */
+
+.zone-source-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+}
+
+.zone-banner-source {
+  display: inline-flex;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  color: var(--primary-light);
+}
+
+/* Source warning banner (shown when IP or Emergency is active) */
+.source-warning-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.06);
+  margin-bottom: 20px;
+  animation: fadeIn 0.4s ease;
+}
+
+.source-warning-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.source-warning-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.source-warning-text strong {
+  font-size: 14px;
+  color: #fbbf24;
+}
+
+.source-warning-text span {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ── Activity log 'warning' type ── */
+.activity-item.warning .activity-icon {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--warning);
+}

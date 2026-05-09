@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import mqtt from 'mqtt'
 
 const MQTT_BROKER = 'wss://broker.hivemq.com:8884/mqtt'
@@ -38,6 +38,15 @@ function classifyZone(lat, lon) {
   if (!isInIndia) return 3
   const dist = haversineDistance(HOME_LAT, HOME_LON, lat, lon)
   return dist <= ZONE1_RADIUS_KM ? 1 : 2
+}
+
+// ── IP-based Geolocation Fallback ──────────────────────────────────────────
+async function ipFallbackGeolocate() {
+  const res = await fetch('http://ip-api.com/json/?fields=status,lat,lon,country')
+  if (!res.ok) throw new Error('IP geolocation request failed')
+  const data = await res.json()
+  if (data.status === 'success') return { lat: data.lat, lon: data.lon, country: data.country }
+  throw new Error('IP geolocation lookup failed')
 }
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -78,6 +87,17 @@ export default function Home() {
   const [lockdownClearStep, setLockdownClearStep] = useState(1) // 1=PIN, 2=ReactivateCode
   const [lockdownClearInput, setLockdownClearInput] = useState('')
   const [lockdownClearError, setLockdownClearError] = useState('')
+
+  // ── Location Verification Gate State ──────────────────────────────────────
+  const [geoVerified, setGeoVerified] = useState(false)       // true once location confirmed
+  const [geoSource, setGeoSource] = useState(null)             // 'gps' | 'ip' | null
+  const [permissionDenied, setPermissionDenied] = useState(false)
+  const [ipFallbackFailed, setIpFallbackFailed] = useState(false)
+  const [geoGateStatus, setGeoGateStatus] = useState('acquiring') // 'acquiring' | 'fallback' | 'denied' | 'failed'
+  // Emergency CBMA override for the gate
+  const [showEmergencyOverride, setShowEmergencyOverride] = useState(false)
+  const [emergencyInput, setEmergencyInput] = useState('')
+  const [emergencyError, setEmergencyError] = useState('')
   // ─────────────────────────────────────────────────────────────────────────
 
   const clientRef = useRef(null)
@@ -110,6 +130,13 @@ export default function Home() {
       }))
     }, 10000)
     return () => clearInterval(interval)
+  }, [])
+
+  // Stable log function (no dependency changes)
+  const addLog = useCallback((text, type = 'info') => {
+    setLogs((prev) =>
+      [{ text, type, time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) }, ...prev].slice(0, 50)
+    )
   }, [])
 
   // MQTT
@@ -146,13 +173,18 @@ export default function Home() {
     client.on('disconnect', () => setConnected(false))
     clientRef.current = client
     return () => client.end()
-  }, [isLoggedIn])
+  }, [isLoggedIn, addLog])
 
-  // ── Geolocation Watcher ───────────────────────────────────────────────────
+  // ── Geolocation Watcher with IP Fallback ──────────────────────────────────
   useEffect(() => {
     if (!isLoggedIn) return
+
+    // ── No browser geolocation support → try IP fallback immediately ──
     if (!navigator?.geolocation) {
       setGeoError('Geolocation not supported by this browser')
+      setGeoGateStatus('fallback')
+      addLog('⚠️ Browser geolocation not supported — trying IP fallback', 'warning')
+      attemptIpFallback()
       return
     }
 
@@ -163,25 +195,28 @@ export default function Home() {
 
       setGeoDistance(distance)
       setGeoError(null)
+      setGeoVerified(true)
+      setGeoSource('gps')
+      setGeoGateStatus('verified')
 
       if (lastZoneRef.current !== zone) {
         lastZoneRef.current = zone
         setGeoZone(zone)
 
         if (zone === 1) {
-          addLog(`📍 Zone 1 — Home vicinity (${distance.toFixed(1)} km)`, 'success')
+          addLog(`📍 Zone 1 — Home vicinity (${distance.toFixed(1)} km) [GPS]`, 'success')
           clientRef.current?.publish(
             MQTT_TOPIC_CMD,
             JSON.stringify({ action: 'zone_home', distance_km: distance.toFixed(1) })
           )
         } else if (zone === 2) {
-          addLog(`✈️ Zone 2 — Away (${distance.toFixed(1)} km from home)`, 'info')
+          addLog(`✈️ Zone 2 — Away (${distance.toFixed(1)} km from home) [GPS]`, 'info')
           clientRef.current?.publish(
             MQTT_TOPIC_CMD,
             JSON.stringify({ action: 'zone_away', distance_km: distance.toFixed(1) })
           )
         } else if (zone === 3) {
-          addLog('🌐🚨 Zone 3 — INTERNATIONAL LOCKDOWN ACTIVATED', 'error')
+          addLog('🌐🚨 Zone 3 — INTERNATIONAL LOCKDOWN ACTIVATED [GPS]', 'error')
           setIsGeoLockedDown(true)
           clientRef.current?.publish(
             MQTT_TOPIC_CMD,
@@ -191,7 +226,32 @@ export default function Home() {
       }
     }
 
-    const onError = (err) => setGeoError(err.message)
+    const onError = (err) => {
+      // Error code 1 = PERMISSION_DENIED
+      if (err.code === 1) {
+        setPermissionDenied(true)
+        setGeoError('Location permission denied')
+        setGeoGateStatus('fallback')
+        addLog('🚫 Location permission DENIED — attempting IP fallback', 'error')
+        attemptIpFallback()
+      } else if (err.code === 2) {
+        // POSITION_UNAVAILABLE
+        setGeoError('Position unavailable')
+        setGeoGateStatus('fallback')
+        addLog('⚠️ GPS position unavailable — attempting IP fallback', 'warning')
+        attemptIpFallback()
+      } else if (err.code === 3) {
+        // TIMEOUT
+        setGeoError('Location request timed out')
+        setGeoGateStatus('fallback')
+        addLog('⏱️ GPS timed out — attempting IP fallback', 'warning')
+        attemptIpFallback()
+      } else {
+        setGeoError(err.message)
+        setGeoGateStatus('failed')
+        addLog(`❌ Geolocation error: ${err.message}`, 'error')
+      }
+    }
 
     const watchId = navigator.geolocation.watchPosition(onPosition, onError, {
       enableHighAccuracy: true,
@@ -199,7 +259,83 @@ export default function Home() {
       timeout: 15000,
     })
     return () => navigator.geolocation.clearWatch(watchId)
-  }, [isLoggedIn])
+  }, [isLoggedIn, addLog])
+
+  // ── IP Fallback Logic ─────────────────────────────────────────────────────
+  const attemptIpFallback = async () => {
+    try {
+      const { lat, lon } = await ipFallbackGeolocate()
+      const distance = haversineDistance(HOME_LAT, HOME_LON, lat, lon)
+      let zone = classifyZone(lat, lon)
+
+      // STRICT RULE: IP-based location NEVER gets Zone 1
+      // Max access level is Zone 2 (Away mode with PIN required)
+      if (zone === 1) {
+        zone = 2
+        addLog('📡 IP fallback: coordinates near home but downgraded to Zone 2 (IP not trusted for Zone 1)', 'warning')
+      }
+
+      setGeoDistance(distance)
+      setGeoVerified(true)
+      setGeoSource('ip')
+      setGeoGateStatus('verified')
+      setGeoError(null)
+
+      lastZoneRef.current = zone
+      setGeoZone(zone)
+
+      if (zone === 2) {
+        addLog(`📡 Zone 2 — Away (${distance.toFixed(1)} km from home) [IP Fallback]`, 'info')
+        clientRef.current?.publish(
+          MQTT_TOPIC_CMD,
+          JSON.stringify({ action: 'zone_away', distance_km: distance.toFixed(1), source: 'ip' })
+        )
+      } else if (zone === 3) {
+        addLog('🌐🚨 Zone 3 — INTERNATIONAL LOCKDOWN ACTIVATED [IP Fallback]', 'error')
+        setIsGeoLockedDown(true)
+        clientRef.current?.publish(
+          MQTT_TOPIC_CMD,
+          JSON.stringify({ action: 'zone_lockdown', source: 'ip' })
+        )
+      }
+    } catch {
+      // Both GPS and IP failed — treat as security failure
+      setIpFallbackFailed(true)
+      setGeoGateStatus('failed')
+      addLog('🔴 IP fallback FAILED — location cannot be verified. Dashboard locked.', 'error')
+      clientRef.current?.publish(
+        MQTT_TOPIC_CMD,
+        JSON.stringify({ action: 'zone_verification_failed' })
+      )
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── Emergency CBMA Override (Gate Bypass — Final Recovery Layer) ─────────
+  const handleEmergencyOverride = () => {
+    setEmergencyError('')
+    if (emergencyInput === REACTIVATE_CODE) {
+      // CBMA is the ONLY emergency bypass — grants Zone 2 (Away) access, never Zone 1
+      setGeoVerified(true)
+      setGeoSource('emergency')
+      setGeoZone(2)
+      setGeoGateStatus('verified')
+      setGeoDistance(null)
+      lastZoneRef.current = 2
+      setShowEmergencyOverride(false)
+      setEmergencyInput('')
+      addLog('🔓 EMERGENCY OVERRIDE — CBMA accepted. Access granted at Zone 2 (Away).', 'warning')
+      clientRef.current?.publish(
+        MQTT_TOPIC_CMD,
+        JSON.stringify({ action: 'emergency_override', zone: 2 })
+      )
+      showNotification('Emergency Override Active — Zone 2', false)
+    } else {
+      setEmergencyError('Invalid emergency code.')
+      addLog('❌ Failed emergency override attempt', 'error')
+      setEmergencyInput('')
+    }
+  }
   // ─────────────────────────────────────────────────────────────────────────
 
   // Login
@@ -207,7 +343,6 @@ export default function Home() {
     e.preventDefault()
     if (accessCodeInput === ACCESS_CODE) {
       setIsLoggedIn(true)
-      sessionStorage.setItem('smartHomeSession', 'active')
       setLoginError('')
     } else {
       setLoginError('Invalid access code.')
@@ -219,8 +354,17 @@ export default function Home() {
 
   const handleLogout = () => {
     setIsLoggedIn(false)
-    sessionStorage.removeItem('smartHomeSession')
     setAccessCodeInput('')
+    // Reset geolocation state on logout
+    setGeoVerified(false)
+    setGeoSource(null)
+    setGeoZone(null)
+    setGeoDistance(null)
+    setGeoError(null)
+    setGeoGateStatus('acquiring')
+    setPermissionDenied(false)
+    setIpFallbackFailed(false)
+    lastZoneRef.current = null
   }
 
   // Voice
@@ -347,12 +491,6 @@ export default function Home() {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
-  const addLog = (text, type = 'info') => {
-    setLogs((prev) =>
-      [{ text, type, time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) }, ...prev].slice(0, 50)
-    )
-  }
-
   const showNotification = (message, isError = false) => {
     setNotification({ message, isError })
     setTimeout(() => setNotification(null), 3500)
@@ -366,6 +504,10 @@ export default function Home() {
     null: { label: '📡 Locating...', color: 'zone-unknown', icon: '📡', desc: 'Acquiring GPS signal' },
   }
   const zm = ZONE_META[geoZone]
+
+  // Source badge text
+  const SOURCE_LABELS = { gps: '🛰️ GPS', ip: '📡 IP', emergency: '🔑 CBMA' }
+  const sourceLabel = geoSource ? SOURCE_LABELS[geoSource] : null
 
   // ── Login Screen ──────────────────────────────────────────────────────────
   if (!isLoggedIn) {
@@ -389,6 +531,122 @@ export default function Home() {
             <button type="submit" className="btn-primary">Authenticate</button>
           </form>
           <p className="error-message">{loginError}</p>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Location Verification Gate ────────────────────────────────────────────
+  // Dashboard is BLOCKED until location is verified via GPS, IP fallback, or
+  // the emergency CBMA override. This prevents the geolocation bypass attack.
+  if (!geoVerified) {
+    return (
+      <div className="geo-gate-container">
+        <div className="geo-gate-card">
+          <div className="geo-gate-logo">
+            <LogoIcon size={48} />
+            <span>Circuit Breakers</span>
+          </div>
+
+          {/* ── Acquiring GPS ── */}
+          {geoGateStatus === 'acquiring' && (
+            <div className="geo-gate-status">
+              <div className="geo-gate-spinner"></div>
+              <h2>Verifying Location</h2>
+              <p className="geo-gate-sub">
+                Acquiring GPS signal to verify your location.<br />
+                Please allow location access when prompted.
+              </p>
+              <div className="geo-gate-step-chips">
+                <span className="geo-gate-chip active">🛰️ GPS Acquiring...</span>
+              </div>
+            </div>
+          )}
+
+          {/* ── IP Fallback in progress ── */}
+          {geoGateStatus === 'fallback' && !ipFallbackFailed && (
+            <div className="geo-gate-status">
+              <div className="geo-gate-spinner fallback"></div>
+              <h2>GPS Unavailable</h2>
+              <p className="geo-gate-sub">
+                {permissionDenied
+                  ? <>Location permission was <strong>denied</strong>.<br />Attempting IP-based location as fallback...</>
+                  : <>GPS signal could not be acquired.<br />Attempting IP-based location as fallback...</>
+                }
+              </p>
+              <div className="geo-gate-step-chips">
+                <span className="geo-gate-chip denied">🛰️ GPS Failed</span>
+                <span className="geo-gate-chip-arrow">→</span>
+                <span className="geo-gate-chip active">📡 IP Fallback...</span>
+              </div>
+            </div>
+          )}
+
+          {/* ── Both GPS and IP Failed — Locked ── */}
+          {(geoGateStatus === 'failed' || (geoGateStatus === 'fallback' && ipFallbackFailed)) && (
+            <div className="geo-gate-status">
+              <div className="geo-gate-lock-icon">🔒</div>
+              <h2>Location Verification Failed</h2>
+              <p className="geo-gate-sub">
+                Both GPS and IP-based location verification failed.<br />
+                Dashboard access is <strong>blocked</strong> for security.
+              </p>
+              <div className="geo-gate-step-chips">
+                <span className="geo-gate-chip denied">🛰️ GPS Failed</span>
+                <span className="geo-gate-chip-arrow">→</span>
+                <span className="geo-gate-chip denied">📡 IP Failed</span>
+              </div>
+              <div className="geo-gate-warning">
+                <span className="geo-gate-warning-icon">⚠️</span>
+                <span>Only the emergency recovery code can bypass this gate.</span>
+              </div>
+              {!showEmergencyOverride && (
+                <button
+                  className="btn-emergency-override"
+                  onClick={() => {
+                    setShowEmergencyOverride(true)
+                    setEmergencyInput('')
+                    setEmergencyError('')
+                  }}
+                >
+                  🔑 Emergency Recovery
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* ── Emergency CBMA Override Form ── */}
+          {showEmergencyOverride && (
+            <div className="geo-gate-emergency">
+              <h3>🔑 Emergency Recovery</h3>
+              <p className="geo-gate-emergency-sub">
+                Enter the emergency recovery code to bypass location verification.<br />
+                Access will be restricted to <strong>Zone 2 (Away Mode)</strong>.
+              </p>
+              <input
+                type="password"
+                value={emergencyInput}
+                onChange={(e) => setEmergencyInput(e.target.value)}
+                placeholder="Emergency Code"
+                autoFocus
+                className="pin-input"
+                style={{ letterSpacing: '6px', textTransform: 'uppercase' }}
+                onKeyDown={(e) => e.key === 'Enter' && handleEmergencyOverride()}
+              />
+              {emergencyError && <p className="lockdown-error">{emergencyError}</p>}
+              <div className="modal-buttons">
+                <button className="btn-secondary" onClick={() => {
+                  setShowEmergencyOverride(false)
+                  setEmergencyInput('')
+                  setEmergencyError('')
+                }}>Cancel</button>
+                <button className="btn-confirm" onClick={handleEmergencyOverride}>Verify</button>
+              </div>
+            </div>
+          )}
+
+          {/* Logout button */}
+          <button className="btn-gate-logout" onClick={handleLogout}>← Back to Login</button>
         </div>
       </div>
     )
@@ -447,6 +705,7 @@ export default function Home() {
             <span className={`zone-pill ${zm.color}`}>
               {zm.label}
               {geoZone !== null && geoDistance !== null && ` · ${geoDistance.toFixed(0)} km`}
+              {sourceLabel && <span className="zone-source-badge">{sourceLabel}</span>}
             </span>
             <div className={`status-dot ${connected ? 'connected' : 'disconnected'}`}></div>
             <button className="btn-logout" onClick={handleLogout}>Exit</button>
@@ -477,15 +736,38 @@ export default function Home() {
           <div className={`zone-banner zone-banner-${geoZone ?? 'null'}`}>
             <span className="zone-banner-icon">{zm.icon}</span>
             <div className="zone-banner-text">
-              <strong>{zm.label}</strong>
+              <strong>
+                {zm.label}
+                {sourceLabel && <span className="zone-banner-source">{sourceLabel}</span>}
+              </strong>
               <span>
                 {geoZone === 2 && geoDistance !== null
                   ? `${geoDistance.toFixed(1)} km from home — ${zm.desc}`
                   : zm.desc}
+                {geoSource === 'ip' && ' (IP-based — limited trust)'}
+                {geoSource === 'emergency' && ' (Emergency override — limited access)'}
               </span>
             </div>
             {geoError && <span className="geo-error-badge">⚠️ {geoError}</span>}
           </div>
+
+          {/* IP / Emergency source warning banner */}
+          {(geoSource === 'ip' || geoSource === 'emergency') && (
+            <div className="source-warning-banner">
+              <span className="source-warning-icon">{geoSource === 'ip' ? '📡' : '🔑'}</span>
+              <div className="source-warning-text">
+                <strong>
+                  {geoSource === 'ip' ? 'IP-Based Location Active' : 'Emergency Override Active'}
+                </strong>
+                <span>
+                  {geoSource === 'ip'
+                    ? 'GPS was unavailable. Location determined via IP address. Zone 1 (Home) privileges are disabled. All actions require PIN verification.'
+                    : 'Location could not be verified. Access granted via emergency recovery code. Zone 1 (Home) privileges are disabled. All actions require PIN verification.'
+                  }
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Tools Bar */}
           <div className="tools-bar">
@@ -528,7 +810,7 @@ export default function Home() {
             <div className="column-left">
               <div className="section-card">
                 <h2>Controls</h2>
-                {geoZone === 2 && (
+                {(geoZone === 2 || geoSource === 'ip' || geoSource === 'emergency') && (
                   <div className="zone-warning-note">
                     ✈️ <strong>Away Mode</strong> — Security PIN required for all actions
                   </div>
@@ -602,6 +884,14 @@ export default function Home() {
               </div>
             )}
 
+            {/* IP/Emergency source hint */}
+            {(geoSource === 'ip' || geoSource === 'emergency') && geoZone !== 2 && (
+              <div className="zone2-modal-hint">
+                {geoSource === 'ip' ? '📡' : '🔑'} Location verified via {geoSource === 'ip' ? 'IP address' : 'emergency override'}.<br />
+                Enhanced verification is active.
+              </div>
+            )}
+
             <div style={{ textAlign: 'center', marginBottom: '20px', fontSize: '40px' }}>
               {pendingAction === 'enable_card' ? '🗝️' : '🔒'}
             </div>
@@ -609,10 +899,10 @@ export default function Home() {
               type="password"
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value)}
-              placeholder={pendingAction === 'enable_card' ? 'Enter Code (CBMA)' : 'Enter PIN'}
+              placeholder={pendingAction === 'enable_card' || pendingAction === 'clear_lockout' ? 'Enter Reactivation Code' : 'Enter PIN'}
               autoFocus
               className="pin-input"
-              style={pendingAction === 'enable_card' ? { letterSpacing: '4px', textTransform: 'uppercase' } : {}}
+              style={pendingAction === 'enable_card' || pendingAction === 'clear_lockout' ? { letterSpacing: '4px', textTransform: 'uppercase' } : {}}
               onKeyDown={(e) => e.key === 'Enter' && verifyAndExecute()}
             />
             <div className="modal-buttons">
@@ -644,7 +934,7 @@ export default function Home() {
             </div>
 
             <p className="lockdown-step-label">
-              {lockdownClearStep === 1 ? 'Enter Security PIN' : 'Enter Reactivation Key (CBMA)'}
+              {lockdownClearStep === 1 ? 'Enter Security PIN' : 'Enter Reactivation Key'}
             </p>
             <input
               type="password"
