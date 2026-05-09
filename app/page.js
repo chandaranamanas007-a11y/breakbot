@@ -3,13 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import mqtt from 'mqtt'
 
-const MQTT_BROKER = 'wss://broker.hivemq.com:8884/mqtt'
+const MQTT_BROKER = process.env.NEXT_PUBLIC_MQTT_BROKER || 'wss://broker.hivemq.com:8884/mqtt'
 const MQTT_TOPIC_CMD = 'breakerbot/cmd'
 const MQTT_TOPIC_STATUS = 'breakerbot/status'
 const MQTT_TOPIC_LOG = 'breakerbot/log'
-const ACCESS_CODE = 'circuit'
-const SECURITY_PIN = 'circuit'
-const REACTIVATE_CODE = 'CBMA'
+const ACCESS_CODE = process.env.NEXT_PUBLIC_ACCESS_CODE || 'circuit'
+const SECURITY_PIN = process.env.NEXT_PUBLIC_SECURITY_PIN || 'circuit'
+const REACTIVATE_CODE = process.env.NEXT_PUBLIC_REACTIVATE_CODE || 'CBMA'
 
 // ── Geofencing ─────────────────────────────────────────────────────────────
 const HOME_LAT = 22.2752   // Naval Nagar, Mavdi, Rajkot
