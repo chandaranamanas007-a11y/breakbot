@@ -49,10 +49,11 @@ function classifyZone(lat, lon) {
 
 // ── IP-based Geolocation Fallback ──────────────────────────────────────────
 async function ipFallbackGeolocate() {
-  const res = await fetch('http://ip-api.com/json/?fields=status,lat,lon,country')
+  // Use HTTPS to prevent Mixed Content security blocking on Vercel
+  const res = await fetch('https://ipwho.is/')
   if (!res.ok) throw new Error('IP geolocation request failed')
   const data = await res.json()
-  if (data.status === 'success') return { lat: data.lat, lon: data.lon, country: data.country }
+  if (data.success) return { lat: data.latitude, lon: data.longitude, country: data.country }
   throw new Error('IP geolocation lookup failed')
 }
 // ───────────────────────────────────────────────────────────────────────────
