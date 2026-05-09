@@ -10,8 +10,8 @@ const MQTT_TOPIC_LOG = 'breakerbot/log'
 
 // Authentication logic moved strictly to Secure Hash Algorithm (SHA-256)
 // Eliminating Vercel environment dependencies while retaining GitHub plaintext security
-const HASH_PIN = '5387f61fb55c0cbbd377bcca98fb5de224d081b7a2d815779c6d4825d1cb3776' // 'circuit'
-const HASH_RECOVERY = '9273c5cf8c697c11267b14d2af52538dd3f4ebf88fa068e8055627f12e8b0a96' // 'CBMA'
+const HASH_PIN = '4666a3f66bc600ad9f11fa871e13e32f1c0fe8ba9ad25265a449b0c983c589f1' // 'circuit'
+const HASH_RECOVERY = 'bf8080ccbd733155dc59739e9d4367fd0910f2e0d2fc238cce670ecab54d28c4' // 'CBMA'
 
 async function hashStr(str) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str))
