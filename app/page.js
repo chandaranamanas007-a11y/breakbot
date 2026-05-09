@@ -324,7 +324,7 @@ export default function Home() {
       lastZoneRef.current = 2
       setShowEmergencyOverride(false)
       setEmergencyInput('')
-      addLog('🔓 EMERGENCY OVERRIDE — CBMA accepted. Access granted at Zone 2 (Away).', 'warning')
+      addLog('🔓 EMERGENCY OVERRIDE — Recovery code accepted. Access granted at Zone 2 (Away).', 'warning')
       clientRef.current?.publish(
         MQTT_TOPIC_CMD,
         JSON.stringify({ action: 'emergency_override', zone: 2 })
